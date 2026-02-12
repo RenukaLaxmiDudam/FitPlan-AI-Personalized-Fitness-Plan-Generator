@@ -25,7 +25,7 @@ Height is converted from centimeters to meters before calculation.
 ## Technologies Used
 - Python
 - Streamlit
-- Hugging Face Spaces --- https://huggingface.co/spaces/Renukalaxmi/Fitplan/tree/main
+- Hugging Face Spaces --- https://huggingface.co/spaces/Renukalaxmi/Fitplan
 
 ## Hugging Face Space Link
 (Add your deployed link here)
