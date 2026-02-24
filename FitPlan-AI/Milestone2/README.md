@@ -93,4 +93,4 @@ The application was tested with three different user scenarios:
 - Level: Beginner
 - Equipment: Resistance Band
 
-## 🗂 Folder Structure
+
