@@ -68,29 +68,7 @@ The prompt is dynamically built using a separate module (`prompt_builder.py`) to
 - Wrapped inference logic inside try-except block.
 - Displayed user-friendly error messages using Streamlit.
 
-### 5️⃣ Testing Scenarios
-
-The application was tested with three different user scenarios:
-
-#### Scenario 1
-- Age: 22
-- BMI Category: Overweight
-- Goal: Weight Loss
-- Level: Beginner
-- Equipment: No Equipment
-
-#### Scenario 2
-- Age: 30
-- BMI Category: Normal Weight
-- Goal: Build Muscle
-- Level: Intermediate
-- Equipment: Dumbbells
-
-#### Scenario 3
-- Age: 40
-- BMI Category: Obese
-- Goal: Strength Gain
-- Level: Beginner
-- Equipment: Resistance Band
+Hugging face Link:
+https://huggingface.co/spaces/Renukalaxmi/FitplanAI
 
 
