@@ -3,14 +3,20 @@
 <p align="center">
   <img src="screenshots/login_page.png" width="800">
 </p>
+
+![Fit Everywhere Login Page](screenshots/login_page.png)
 ==================================================
 ============creating account================
 <p align="center">
   <img src="screenshots/create_account.png" width="800">
 </p>
+
+![Create Account Page](screenshots/create_account.png)
 =================================================
 ==============account open===============
 <p align="center">
   <img src="screenshots/profile_page.png" width="800">
 </p>
+
+![FitPlan AI Dashboard - Profile Page](screenshots/profile_page.png)
 ==================================================
