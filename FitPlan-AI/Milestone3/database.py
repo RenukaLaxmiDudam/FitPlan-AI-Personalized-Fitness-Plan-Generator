@@ -1,62 +1,129 @@
+import sqlite3
+
 # -----------------------
-# DATABASE CONNECTION
+# DATABASE INITIALIZATION
 # -----------------------
-conn = sqlite3.connect("fitplan.db", check_same_thread=False)
-cursor = conn.cursor()
+def init_db():
+    conn = sqlite3.connect("fitplan.db", check_same_thread=False)
+    cursor = conn.cursor()
 
-# Create Users Table
-cursor.execute("""
-CREATE TABLE IF NOT EXISTS users(
-    name TEXT,
-    age INTEGER,
-    gender TEXT,
-    email TEXT PRIMARY KEY,
-    password TEXT,
-    goal TEXT
-)
-""")
-
-# Create Workout Plan Table
-cursor.execute("""
-CREATE TABLE IF NOT EXISTS workout_plans(
-    email TEXT,
-    goal TEXT,
-    plan TEXT
-)
-""")
-conn.commit()
-
-
-if st.form_submit_button("SIGN UP"):
-
-    cursor.execute(
-        "INSERT INTO users (name,age,gender,email,password,goal) VALUES (?,?,?,?,?,?)",
-        (name,age,gender,email,password,goal)
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS users(
+        name TEXT,
+        age INTEGER,
+        gender TEXT,
+        email TEXT PRIMARY KEY,
+        password TEXT,
+        goal TEXT
     )
+    """)
+
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS workout_plans_v2(
+        email TEXT PRIMARY KEY,
+        goal TEXT,
+        plan TEXT
+    )
+    """)
+
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS weights(
+        email TEXT,
+        weight REAL,
+        date TEXT
+    )
+    """)
 
     conn.commit()
+    return conn
 
-    st.success("Account Created Successfully! 🎉")
+
+# -----------------------
+# ADD USER
+# -----------------------
+def add_user(name, age, gender, email, password, goal):
+    conn = sqlite3.connect("fitplan.db")
+    cursor = conn.cursor()
+
+    try:
+        cursor.execute(
+            "INSERT INTO users VALUES (?,?,?,?,?,?)",
+            (name, age, gender, email, password, goal)
+        )
+        conn.commit()
+        return True
+    except:
+        return False
+    finally:
+        conn.close()
 
 
-    if st.button("LOGIN"):
+# -----------------------
+# VERIFY USER
+# -----------------------
+def verify_user(email, password):
+    conn = sqlite3.connect("fitplan.db")
+    cursor = conn.cursor()
 
     cursor.execute(
         "SELECT * FROM users WHERE email=? AND password=?",
-        (email,password)
+        (email, password)
     )
 
     user = cursor.fetchone()
+    conn.close()
 
-    if user:
-        st.session_state.page = "dashboard"
-        st.rerun()
-    else:
-        st.error("Invalid email or password")
+    return user
 
-        cursor.execute(
-    "INSERT INTO workout_plans (email,goal,plan) VALUES (?,?,?)",
-    (email,goal,generated_plan)
-)
 
-conn.commit()
+# -----------------------
+# SAVE WORKOUT PLAN
+# -----------------------
+def save_workout(email, goal, plan):
+    conn = sqlite3.connect("fitplan.db")
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        INSERT INTO workout_plans_v2 (email, goal, plan)
+        VALUES (?, ?, ?)
+        ON CONFLICT(email) DO UPDATE SET
+        goal=excluded.goal,
+        plan=excluded.plan
+    """, (email, goal, plan))
+
+    conn.commit()
+    conn.close()
+
+
+# -----------------------
+# SAVE WEIGHT
+# -----------------------
+def save_weight(email, weight, date):
+    conn = sqlite3.connect("fitplan.db")
+    cursor = conn.cursor()
+
+    cursor.execute(
+        "INSERT INTO weights VALUES (?,?,?)",
+        (email, weight, date)
+    )
+
+    conn.commit()
+    conn.close()
+
+
+# -----------------------
+# GET WEIGHT HISTORY
+# -----------------------
+def get_weights(email):
+    conn = sqlite3.connect("fitplan.db")
+    cursor = conn.cursor()
+
+    cursor.execute(
+        "SELECT date, weight FROM weights WHERE email=? ORDER BY date",
+        (email,)
+    )
+
+    data = cursor.fetchall()
+    conn.close()
+
+    return data
