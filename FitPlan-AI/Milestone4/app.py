@@ -2,6 +2,7 @@ import streamlit as st
 import random
 import database as db
 from auth import create_jwt, verify_jwt, send_otp_via_brevo
+from remember import save_email, load_email
 import model
 import time
 
@@ -202,55 +203,79 @@ elif st.session_state.page == "login":
 
     with main_col:
         st.markdown('<div class="glass-card fade-in">', unsafe_allow_html=True)
-        st.markdown('<h2 style="text-align: center; margin-bottom: 2rem;">Welcome Back</h2>', unsafe_allow_html=True)
+        st.markdown('<h2 style="text-align: center;">Welcome Back</h2>', unsafe_allow_html=True)
 
         method = st.radio("Access Method", ["Password", "OTP"], horizontal=True)
-        email = st.text_input("Email Address", placeholder="name@example.com")
 
+        email = st.text_input(
+            "Email Address",
+            value=load_email(),
+            placeholder="name@example.com"
+        )
+
+        # ================= PASSWORD LOGIN =================
         if method == "Password":
             password = st.text_input("Password", type="password", placeholder="••••••••")
+
             if st.button("CONTINUE"):
                 user = db.verify_user(email, password)
+
                 if user:
+                    save_email(email)  # ✅ save email
+
                     st.session_state.user_email = email
                     st.session_state.token = create_jwt(email)
+
                     profile = db.get_user_profile(email)
+
                     if profile:
-                        st.session_state.name, st.session_state.age, st.session_state.gender, st.session_state.goal = profile
+                        st.session_state.name, st.session_state.age, st.session_state.gender, st.session_state.height, st.session_state.weight, st.session_state.goal = profile
                         st.session_state.page = "dashboard"
                     else:
-                        st.session_state.page = "profile_setup" # Direct to setup if no profile
+                        st.session_state.page = "profile_setup"
+
                     st.rerun()
                 else:
                     st.error("Authentication failed. Check credentials.")
+
+        # ================= OTP LOGIN =================
         else:
             if st.button("SEND OTP"):
                 otp = str(random.randint(100000, 999999))
                 st.session_state.generated_otp = otp
+
                 if send_otp_via_brevo(email, otp):
                     st.success("OTP sent to your email!")
                 else:
                     st.error("Failed to send OTP. Try again.")
 
             entered = st.text_input("Verification Code", placeholder="123456")
+
             if st.button("VERIFY"):
                 if entered == st.session_state.generated_otp:
+                    save_email(email)  # ✅ save email here also
+
                     st.session_state.user_email = email
                     st.session_state.token = create_jwt(email)
+
                     profile = db.get_user_profile(email)
+
                     if profile:
-                        st.session_state.name, st.session_state.age, st.session_state.gender, st.session_state.goal = profile
+                        st.session_state.name, st.session_state.age, st.session_state.gender, st.session_state.height, st.session_state.goal = profile
                         st.session_state.page = "dashboard"
                     else:
                         st.session_state.page = "profile_setup"
+
                     st.rerun()
                 else:
                     st.error("Invalid verification code.")
 
         st.markdown("<hr style='opacity: 0.1'>", unsafe_allow_html=True)
+
         if st.button("Need an account? Sign Up"):
             st.session_state.page = "signup"
             st.rerun()
+
         if st.button("← Back to Home"):
             st.session_state.page = "landing"
             st.rerun()
@@ -310,8 +335,11 @@ elif st.session_state.page == "verify_signup":
             if entered == st.session_state.generated_otp:
                 data = st.session_state.temp_signup
                 # Initial signup with default age/gender - will be updated in set up
-                ok = db.add_user(data["name"], 20, "Other", data["email"], data["password"], "General Fitness")
+                # Added 170.0 as a default height to fix the argument count
+                ok = db.add_user( data["name"], 20, "Other", 170.0, data["email"], data["password"], "General Fitness")
                 if ok:
+                    save_email(data["email"])   # ✅ save email
+
                     st.success("Welcome aboard! Let's set up your profile.")
                     st.session_state.user_email = data["email"]
                     st.session_state.name = data["name"]
@@ -341,7 +369,8 @@ elif st.session_state.page == "profile_setup":
             goal = st.selectbox("Primary Fitness Goal", ["Build Muscle", "Lose Weight", "Endurance", "Flexibility", "General Fitness"])
         
         if st.button("FINISH SETUP"):
-            db.update_profile(st.session_state.name, age, gender, goal, st.session_state.user_email)
+            # Added 'height' as the 4th argument to match database.py
+            db.update_profile(st.session_state.name, age, gender, height,weight, goal, st.session_state.user_email)
             st.session_state.age = age
             st.session_state.gender = gender
             st.session_state.goal = goal
@@ -468,11 +497,21 @@ elif st.session_state.page == "dashboard":
                                index=["Build Muscle", "Lose Weight", "Endurance", "Flexibility", "General Fitness"].index(st.session_state.goal))
 
         if st.button("UPDATE PROFILE"):
-            db.update_profile(new_name, new_age, st.session_state.gender, new_goal, st.session_state.user_email)
-            st.session_state.name = new_name
-            st.session_state.age = new_age
-            st.session_state.height = new_height
-            st.session_state.weight = new_weight
-            st.session_state.goal = new_goal
-            st.success("Profile updated successfully!")
+           db.update_profile(
+              new_name,
+              new_age,
+              st.session_state.gender,
+              new_height,
+              new_weight,
+              new_goal,
+             st.session_state.user_email
+           )
+
+           st.session_state.name = new_name
+           st.session_state.age = new_age
+           st.session_state.height = new_height
+           st.session_state.weight = new_weight
+           st.session_state.goal = new_goal
+
+           st.success("Profile updated successfully!")
         st.markdown('</div>', unsafe_allow_html=True)
