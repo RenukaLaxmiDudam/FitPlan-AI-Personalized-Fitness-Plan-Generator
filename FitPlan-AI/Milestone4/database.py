@@ -1,176 +1,112 @@
-import sqlite3
-import pandas as pd
+import os
 import bcrypt
-
-DB_NAME = "fitplan.db"
-
+import certifi # Added to handle SSL handshake
+from pymongo import MongoClient
+from datetime import datetime
 
 # ---------------- CONNECTION ----------------
-def get_connection():
-    return sqlite3.connect(DB_NAME, check_same_thread=False)
+# Use certifi.where() to provide the correct CA bundle for the SSL handshake
+ca = certifi.where()
 
+MONGO_URI = os.getenv("MONGO_URI") 
 
-# ---------------- INIT DATABASE ----------------
+if not MONGO_URI:
+    raise Exception("MONGO_URI not found. Please set it in Hugging Face Secrets.")
+
+# Initialize the client with the TLS certificate fix
+client = MongoClient(MONGO_URI, tlsCAFile=ca)
+
+db = client["fitplan_ai"]
+
+# Collections
+users_col = db["users"]
+weights_col = db["weights"]
+workouts_col = db["workouts"]
+# ---------------- INIT DB ----------------
 def init_db():
-    conn = get_connection()
-    cur = conn.cursor()
+    pass
 
-    # USERS TABLE
-    cur.execute("""
-        CREATE TABLE IF NOT EXISTS users(
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT,
-            age INTEGER,
-            gender TEXT,
-            height REAL DEFAULT 170,
-            email TEXT UNIQUE,
-            password TEXT,
-            goal TEXT,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-    """)
+# ---------------- PASSWORD HASH ----------------
+def hash_password(password):
+    return bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt())
 
-    # WORKOUT TABLE
-    cur.execute("""
-        CREATE TABLE IF NOT EXISTS workouts(
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            email TEXT,
-            focus TEXT,
-            plan TEXT,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-    """)
+def check_password(password, hashed):
+    return bcrypt.checkpw(password.encode('utf-8'), hashed)
 
-    # WEIGHT TABLE
-    cur.execute("""
-        CREATE TABLE IF NOT EXISTS weights(
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            email TEXT,
-            weight REAL,
-            date TEXT
-        )
-    """)
-
-    conn.commit()
-    conn.close()
-
-
-# ---------------- ADD USER ----------------
-def add_user(name, age, gender, email, password, goal):
-    try:
-        conn = get_connection()
-        cur = conn.cursor()
-
-        # HASH PASSWORD
-        hashed_pw = bcrypt.hashpw(password.encode(), bcrypt.gensalt())
-
-        cur.execute("""
-            INSERT INTO users(name, age, gender, email, password, goal)
-            VALUES (?, ?, ?, ?, ?, ?)
-        """, (name, age, gender, email, hashed_pw, goal))
-
-        conn.commit()
-        conn.close()
-        return True
-    except:
+# ---------------- USER FUNCTIONS ----------------
+def add_user(name, age, gender, height, email, password, goal):
+    # Check if user already exists
+    if users_col.find_one({"email": email}):
         return False
+    
+    users_col.insert_one({
+        "name": name,
+        "age": age,
+        "gender": gender,
+        "height": height,
+        " weight":weight,
+        "email": email,
+        "password": hash_password(password),
+        "goal": goal,
+        "created_at": datetime.utcnow()
+    })
+    return True
 
-
-# ---------------- VERIFY USER ----------------
 def verify_user(email, password):
-    conn = get_connection()
-    cur = conn.cursor()
-
-    cur.execute("SELECT * FROM users WHERE email=?", (email,))
-    user = cur.fetchone()
-
-    conn.close()
-
-    if user:
-        stored_pw = user[6]  # password column index
-        if bcrypt.checkpw(password.encode(), stored_pw):
-            return user
-
+    user = users_col.find_one({"email": email})
+    if user and check_password(password, user["password"]):
+        return user
     return None
 
-
-# ---------------- GET PROFILE ----------------
 def get_user_profile(email):
-    conn = get_connection()
-    cur = conn.cursor()
-
-    cur.execute("""
-        SELECT name, age, gender, goal, height
-        FROM users
-        WHERE email=?
-    """, (email,))
-
-    data = cur.fetchone()
-    conn.close()
-
-    if data:
-        return data[0], data[1], data[2], data[3]   # return SAME as old (for app.py compatibility)
-
+    user = users_col.find_one({"email": email})
+    if user:
+        return (
+            user.get("name"),
+            user.get("age"),
+            user.get("gender"),
+            user.get("height"),
+            user.get("weight"),
+            user.get("goal")
+        )
     return None
 
-
-# ---------------- UPDATE PROFILE ----------------
-def update_profile(name, age, gender, goal, email):
-    conn = get_connection()
-    cur = conn.cursor()
-
-    cur.execute("""
-        UPDATE users
-        SET name=?, age=?, gender=?, goal=?
-        WHERE email=?
-    """, (name, age, gender, goal, email))
-
-    conn.commit()
-    conn.close()
-
-
-# ---------------- SAVE WORKOUT ----------------
-def save_workout(email, focus, plan):
-    conn = get_connection()
-    cur = conn.cursor()
-
-    cur.execute("""
-        INSERT INTO workouts(email, focus, plan)
-        VALUES (?, ?, ?)
-    """, (email, focus, plan))
-
-    conn.commit()
-    conn.close()
-
-
-# ---------------- SAVE WEIGHT ----------------
-def save_weight(email, weight, date):
-    conn = get_connection()
-    cur = conn.cursor()
-
-    cur.execute("""
-        INSERT INTO weights(email, weight, date)
-        VALUES (?, ?, ?)
-    """, (email, weight, date))
-
-    conn.commit()
-    conn.close()
-
-
-# ---------------- GET WEIGHTS ----------------
-def get_weights(email):
-    conn = get_connection()
-
-    df = pd.read_sql_query(
-        "SELECT date, weight FROM weights WHERE email=? ORDER BY date",
-        conn,
-        params=(email,)
+def update_profile(name, age, gender, height,weight, goal, email):
+    users_col.update_one(
+        {"email": email},
+        {"$set": {
+            "name": name,
+            "age": age,
+            "gender": gender,
+            "height": height,
+            "weight": weight,
+            "goal": goal
+        }}
     )
 
-    conn.close()
+# ---------------- WEIGHT TRACKING ----------------
+def save_weight(email, weight, date):
+    # Tip: Ensure 'date' is a datetime object or a string ISO format
+    weights_col.insert_one({
+        "email": email,
+        "weight": weight,
+        "date": date
+    })
 
-    if df.empty:
+def get_weights(email):
+    data = list(weights_col.find({"email": email}).sort("date", 1))
+    if not data:
         return None
+    return {
+        "date": [d["date"] for d in data],
+        "weight": [d["weight"] for d in data]
+    }
 
-    df = df.set_index("date")
-    return df
+# ---------------- WORKOUTS ----------------
+def save_workout(email, goal, plan):
+    workouts_col.insert_one({
+        "email": email,
+        "goal": goal,
+        "plan": plan,
+        "created_at": datetime.utcnow()
+    })
