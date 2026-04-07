@@ -15,7 +15,7 @@ The application also provides **secure authentication using Password or OTP logi
 * 📊 **Weight Tracking System**
 * 👤 **User Profile Management**
 * 🎨 Modern **Glassmorphism UI Design**
-* 💾 Data stored using **SQLite Database**
+* ☁️ Data stored using **MongoDB Database**
 * 🔑 Secure session handling using **JWT Tokens**
 
 ---
@@ -25,8 +25,6 @@ The application also provides **secure authentication using Password or OTP logi
 FitPlan AI uses a **Generative AI Model – Gemini 1.5 Flash** to generate structured workout plans.
 
 ### ⚙️ Model Function
-
-The workout generation logic is implemented inside:
 
 ```python
 generate_workout(name, age, goal, level, equipment, bmi)
@@ -60,6 +58,8 @@ Users can log in using:
 * Email + Password
 * Email + OTP verification
 
+---
+
 ### 2️⃣ Signup Page
 
 New users can create an account by entering:
@@ -72,6 +72,8 @@ New users can create an account by entering:
 * Fitness Goal
 
 After submitting details, an **OTP is sent to the user's email** for verification.
+
+---
 
 ### 3️⃣ Dashboard
 
@@ -101,7 +103,8 @@ Users can:
 | ---------------- | --------------------- |
 | Python           | Backend               |
 | Streamlit        | Web UI                |
-| SQLite           | Database              |
+| MongoDB          | Database (NoSQL)      |
+| PyMongo          | MongoDB Integration   |
 | JWT              | Authentication        |
 | Brevo / SendGrid | Email OTP             |
 | Gemini API       | AI Workout Generation |
@@ -114,9 +117,10 @@ Users can:
 FitPlan-AI/
 │
 ├── app.py
-├── database.py
+├── database.py        # MongoDB operations
 ├── auth.py
 ├── model.py
+├── remember.py
 ├── requirements.txt
 ├── README.md
 └── screenshots/
@@ -132,7 +136,22 @@ FitPlan-AI/
 pip install -r requirements.txt
 ```
 
-### Step 2 – Run Streamlit App
+### Step 2 – Configure MongoDB
+
+You can use:
+
+👉 Local MongoDB OR
+👉 MongoDB Atlas (Cloud)
+
+Add your connection string:
+
+```python
+MONGO_URI = "your_mongodb_connection_string"
+```
+
+---
+
+### Step 3 – Run Streamlit App
 
 ```
 streamlit run app.py
@@ -140,17 +159,49 @@ streamlit run app.py
 
 ---
 
+## 🗄️ Database Structure (MongoDB)
+
+### Users Collection
+
+```json
+{
+  "name": "Sai",
+  "age": 22,
+  "gender": "Male",
+  "height": 175,
+  "weight": 70,
+  "email": "user@example.com",
+  "password": "hashed_password",
+  "goal": "Build Muscle"
+}
+```
+
+---
+
+### Weights Collection
+
+```json
+{
+  "email": "user@example.com",
+  "weight": 72,
+  "date": "2026-04-03"
+}
+```
+
+---
+
 ## 🔮 Future Enhancements
 
-* Password hashing security (bcrypt)
-* Diet plan AI generator
-* Advanced workout history page
-* BMI auto calculation
-* Mobile responsive UI
-* Deployment on Streamlit Cloud / AWS
-* Integration with wearable fitness devices
+* 🔐 Password hashing security (bcrypt)
+* 🥗 Diet plan AI generator
+* 📊 Advanced analytics dashboard
+* 📱 Mobile responsive UI
+* ☁️ Full cloud deployment (AWS / GCP)
+* ⌚ Wearable device integration (Fitbit, Apple Watch)
+* 🤖 Smart AI coaching assistant
 
 ---
 
 
 
+💡 *“Your fitness journey, powered by AI.”*
